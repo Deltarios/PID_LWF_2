@@ -7,7 +7,7 @@
 
    FECHA: 12 de marzo del 2018
 
-   VERSION: 1.0
+   VERSION: 1.2
  ***************************************************************
 */
 #include <QTRSensors.h>
@@ -42,9 +42,9 @@ bool estadoRobot = false;
 
 const float velocidadBase = 100.0;
 
-const float kP = 0.02;
-const float kI = 0.00003;
-const float kD = 0.04;
+const float kP = 0.08;
+const float kI = 0.0003;
+const float kD = 0.12;
 
 volatile unsigned long leftCount = 0;
 volatile unsigned long rightCount = 0;
@@ -224,6 +224,8 @@ unsigned int calculoPID() {
 unsigned int leerPosicionError() {
 
   qtra.read(valoresSensorIr);
+
+  posicion_actual = qtra.readLine(valoresSensorIr);
 
   return (POS_OBJECTIVO - posicion_actual); // 3500 - 5050 = -1550
 }
