@@ -168,7 +168,7 @@ void inicioRobot() {
   float velocidadActualDer = velocidadDer + errorPID; // antes era +
 
   float velocidadRPMIzq = rpmIzq - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
-  float velocidadRPMDer = rpmDer + errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2 
+  float velocidadRPMDer = rpmDer + errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
 
   Serial.println("Error PID" + String(errorPID));
 
