@@ -102,13 +102,9 @@ void leftEncoderEvento() {
   if (digitalRead(ENCO_A_IZQ) == HIGH) {
     if (digitalRead(ENCO_B_IZQ) == LOW) {
       leftCount++;
-    } else {
-      leftCount--;
     }
   } else {
-    if (digitalRead(ENCO_B_IZQ) == LOW) {
-      leftCount--;
-    } else {
+    if (digitalRead(ENCO_B_IZQ) == HIGH) {
       leftCount++;
     }
   }
@@ -118,123 +114,124 @@ void rightEncoderEvento() {
   if (digitalRead(ENCO_A_DER) == HIGH) {
     if (digitalRead(ENCO_B_DER) == LOW) {
       rightCount++;
-    } 
+    }
   } else {
     if (digitalRead(ENCO_B_DER) == HIGH) {
       rightCount++;
     }
   }
+}
 
-  void loop() {
-    estadoBoton = digitalRead(BUTTON_STATUS);
-    delay(40);
+void loop() {
+  estadoBoton = digitalRead(BUTTON_STATUS);
+  delay(40);
 
-    if (estadoBoton == HIGH && previous == LOW && millis() - tiempo > esperaTiempo) {
-      if (estadoRobot)
-        estadoRobot = false;
-      else
-        estadoRobot = true;
-      tiempo = millis();
-    }
-
-    if (!estadoRobot) {
-      int motoresEncendidos = digitalRead(STBY);
-      if (motoresEncendidos == 1) {
-        digitalWrite(STBY, LOW);
-      }
-    }
-
-    if (estadoRobot) {
-      inicioRobot();
-    }
-
-    previous = estadoBoton;
+  if (estadoBoton == HIGH && previous == LOW && millis() - tiempo > esperaTiempo) {
+    if (estadoRobot)
+      estadoRobot = false;
+    else
+      estadoRobot = true;
+    tiempo = millis();
   }
 
-  void inicioRobot() {
-    digitalWrite(STBY, HIGH);
-
-
-    primeraArrancada();
-
-    leerVelocidades();
-
-    int errorPID = calculoPID(); // = -1.2
-
-    float velocidadActualIzq = velocidadIzq - errorPID; // antes  era -
-    float velocidadActualDer = velocidadDer + errorPID; // antes era +
-
-    float velocidadRPMIzq = rpmIzq - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
-    float velocidadRPMDer = rpmDer + errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
-
-    int potenciaPWMIzq = ceil(map(velocidadRPMIzq, 0, 3000, 0, 255)); // 147.00
-    int potenciaPWMDer = ceil(map(velocidadRPMDer, 0, 3000, 0, 255)); // 107.00
-
-    if (potenciaPWMIzq > velocidadBase) {
-      potenciaPWMIzq = velocidadBase;
-    }
-
-    if (potenciaPWMDer > velocidadBase) {
-      potenciaPWMDer = velocidadBase;
-    }
-
-    analogWrite(PWMA, potenciaPWMDer);
-    analogWrite(PWMB, potenciaPWMIzq);
-    adelante();
-
-    posicionAnterior = position;
-  }
-
-  void leerVelocidades() {
-    long tiempoActual = millis();
-    if (tiempoActual - tiempoAnterior >= 1000) {
-      noInterrupts();
-      rpmIzq = 60 * leftCount / pulsosPorRevolucion * 1000 / (millis() - tiempoAnterior);
-
-      rpmDer = 60 * rightCount / pulsosPorRevolucion * 1000 / (millis() - tiempoAnterior);
-
-      velocidadIzq = rpmIzq / relacionRuedas * 3.1416 * diametroRueda * 60 / 1000000;
-
-      velocidadIzq = rpmDer / relacionRuedas * 3.1416 * diametroRueda * 60 / 1000000;
-
-      leftCount = 0;
-      rightCount = 0;
-
-      tiempoAnterior = millis();
-      interrupts();
+  if (!estadoRobot) {
+    int motoresEncendidos = digitalRead(STBY);
+    if (motoresEncendidos == 1) {
+      digitalWrite(STBY, LOW);
     }
   }
 
-  unsigned int calculoPID() {
-    position = leerPosicionError(); // -1550  // -6
-
-    derivativo = position - posicionAnterior; // 14  // -5035  // - 6- (-6) = 0
-
-    integral = integral + position; // 14 . // -5035 + 14 = -5021 // -6 - 6 = -12
-
-    return (kP * position + kI * integral + kD * derivativo); // kp = 0.02, ki = 0.00003, kd = 0.04 => -1.2  - 0.00036  - 0  = -1.2
-
+  if (estadoRobot) {
+    inicioRobot();
   }
 
-  unsigned int leerPosicionError() {
+  previous = estadoBoton;
+}
 
-    qtra.read(valoresSensorIr);
+void inicioRobot() {
+  digitalWrite(STBY, HIGH);
 
-    posicion_actual = qtra.readLine(valoresSensorIr);
 
-    return (posicion_actual - POS_OBJECTIVO); // 3500 - 5050 = -1550
+  primeraArrancada();
+
+  leerVelocidades();
+
+  int errorPID = calculoPID(); // = -1.2
+
+  float velocidadActualIzq = velocidadIzq - errorPID; // antes  era -
+  float velocidadActualDer = velocidadDer + errorPID; // antes era +
+
+  float velocidadRPMIzq = rpmIzq - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
+  float velocidadRPMDer = rpmDer + errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
+
+  int potenciaPWMIzq = ceil(map(velocidadRPMIzq, 0, 3000, 0, 255)); // 147.00
+  int potenciaPWMDer = ceil(map(velocidadRPMDer, 0, 3000, 0, 255)); // 107.00
+
+  if (potenciaPWMIzq > velocidadBase) {
+    potenciaPWMIzq = velocidadBase;
   }
 
-  void primeraArrancada() {
-    analogWrite(PWMA, velocidadBase);
-    analogWrite(PWMB, velocidadBase);
-    adelante();
+  if (potenciaPWMDer > velocidadBase) {
+    potenciaPWMDer = velocidadBase;
   }
 
-  void adelante() {
-    digitalWrite(AIN_1, HIGH);
-    digitalWrite(AIN_2, LOW);
+  analogWrite(PWMA, potenciaPWMDer);
+  analogWrite(PWMB, potenciaPWMIzq);
+  adelante();
 
-    digitalWrite(BIN_1, LOW);
-    digitalWrite(BIN_2, HIGH);
+  posicionAnterior = position;
+}
+
+void leerVelocidades() {
+  long tiempoActual = millis();
+  if (tiempoActual - tiempoAnterior >= 1000) {
+    noInterrupts();
+    rpmIzq = 60 * leftCount / pulsosPorRevolucion * 1000 / (millis() - tiempoAnterior);
+
+    rpmDer = 60 * rightCount / pulsosPorRevolucion * 1000 / (millis() - tiempoAnterior);
+
+    velocidadIzq = rpmIzq / relacionRuedas * 3.1416 * diametroRueda * 60 / 1000000;
+
+    velocidadIzq = rpmDer / relacionRuedas * 3.1416 * diametroRueda * 60 / 1000000;
+
+    leftCount = 0;
+    rightCount = 0;
+
+    tiempoAnterior = millis();
+    interrupts();
   }
+}
+
+unsigned int calculoPID() {
+  position = leerPosicionError(); // -1550  // -6
+
+  derivativo = position - posicionAnterior; // 14  // -5035  // - 6- (-6) = 0
+
+  integral = integral + position; // 14 . // -5035 + 14 = -5021 // -6 - 6 = -12
+
+  return (kP * position + kI * integral + kD * derivativo); // kp = 0.02, ki = 0.00003, kd = 0.04 => -1.2  - 0.00036  - 0  = -1.2
+
+}
+
+unsigned int leerPosicionError() {
+
+  qtra.read(valoresSensorIr);
+
+  posicion_actual = qtra.readLine(valoresSensorIr);
+
+  return (posicion_actual - POS_OBJECTIVO); // 3500 - 5050 = -1550
+}
+
+void primeraArrancada() {
+  analogWrite(PWMA, velocidadBase);
+  analogWrite(PWMB, velocidadBase);
+  adelante();
+}
+
+void adelante() {
+  digitalWrite(AIN_1, HIGH);
+  digitalWrite(AIN_2, LOW);
+
+  digitalWrite(BIN_1, LOW);
+  digitalWrite(BIN_2, HIGH);
+}
