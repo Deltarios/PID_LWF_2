@@ -40,7 +40,7 @@ long tiempo = 0;
 int previous = LOW;
 bool estadoRobot = false;
 
-const float velocidadBase = 100.0;
+const float velocidadBase = 50.0;
 
 const float kP = 0.08;
 const float kI = 0.0003;
@@ -156,16 +156,24 @@ void inicioRobot() {
 
   leerVelocidades();
 
-  int errorPID = calculoPID(); // = -1.2
+  Serial.println("++++++++++++Incio+++++++++++++++");
 
-  float velocidadActualIzq = velocidadIzq - errorPID; // antes  era -
-  float velocidadActualDer = velocidadDer + errorPID; // antes era +
+  float errorPID = calculoPID(); // = -1.2
 
-  float velocidadRPMIzq = rpmIzq - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
-  float velocidadRPMDer = rpmDer + errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
+  Serial.println("Calculo PID: " + String(errorPID));
+
+  float velocidadRPMIzq = rpmIzq + errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
+  float velocidadRPMDer = rpmDer - errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
 
   int potenciaPWMIzq = ceil(map(velocidadRPMIzq, 0, 3000, 0, 255)); // 147.00
   int potenciaPWMDer = ceil(map(velocidadRPMDer, 0, 3000, 0, 255)); // 107.00
+
+  Serial.println("---------------------------");
+  Serial.println("Velocidad Izquierda RPM: " + String(rpmIzq) + " -> " + "Potencia Izquierda PWM: " + String(potenciaPWMIzq));
+  Serial.println("Velocidad Derecha RPM: " + String(rpmDer) + " -> " + "Potencia Derecha PWM: " + String(velocidadRPMDer));
+  Serial.println("++++++++++++Final+++++++++++++++++");
+
+  delay(100);
 
   if (potenciaPWMIzq > velocidadBase) {
     potenciaPWMIzq = velocidadBase;
@@ -190,10 +198,6 @@ void leerVelocidades() {
 
     rpmDer = 60 * rightCount / pulsosPorRevolucion * 1000 / (millis() - tiempoAnterior);
 
-    velocidadIzq = rpmIzq / relacionRuedas * 3.1416 * diametroRueda * 60 / 1000000;
-
-    velocidadIzq = rpmDer / relacionRuedas * 3.1416 * diametroRueda * 60 / 1000000;
-
     leftCount = 0;
     rightCount = 0;
 
@@ -203,11 +207,17 @@ void leerVelocidades() {
 }
 
 unsigned int calculoPID() {
-  position = leerPosicionError(); // -1550  // -6
+  position = leerPosicionError(); // 3500
 
-  derivativo = position - posicionAnterior; // 14  // -5035  // - 6- (-6) = 0
+  Serial.println("Posicion:  " + String(position));
 
-  integral = integral + position; // 14 . // -5035 + 14 = -5021 // -6 - 6 = -12
+  derivativo = position - posicionAnterior; // 3500 - 3500
+
+  Serial.println("Derivativo:  " + String(derivativo));
+
+  integral = integral + position; // 14 . //
+
+  Serial.println("Integral:  " + String(integral));
 
   return (kP * position + kI * integral + kD * derivativo); // kp = 0.02, ki = 0.00003, kd = 0.04 => -1.2  - 0.00036  - 0  = -1.2
 
@@ -218,6 +228,13 @@ unsigned int leerPosicionError() {
   qtra.read(valoresSensorIr);
 
   posicion_actual = qtra.readLine(valoresSensorIr);
+
+  for (unsigned char i = 0; i < NUM_SENSOR_IR; i++)
+  {
+    Serial.print(valoresSensorIr[i]);
+    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
+  }
+  Serial.println("| " + String(posicion_actual) + " | " + String(millis()));
 
   return (posicion_actual - POS_OBJECTIVO); // 3500 - 5050 = -1550
 }
