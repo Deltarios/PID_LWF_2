@@ -147,7 +147,6 @@ void loop() {
     if (motoresEncendidos == 1) {
       digitalWrite(STBY, LOW);
     }
-    Serial.println("Apagado");
   }
 
   if (estadoRobot) {
@@ -160,6 +159,9 @@ void loop() {
 void inicioRobot() {
   digitalWrite(STBY, HIGH);
 
+
+  primeraArrancada();
+
   leerVelocidades();
 
   int errorPID = calculoPID(); // = -1.2
@@ -169,8 +171,6 @@ void inicioRobot() {
 
   float velocidadRPMIzq = rpmIzq - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
   float velocidadRPMDer = rpmDer + errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
-
-  Serial.println("Error PID" + String(errorPID));
 
   int potenciaPWMIzq = ceil(map(velocidadRPMIzq, 0, 3000, 0, 255)); // 147.00
   int potenciaPWMDer = ceil(map(velocidadRPMDer, 0, 3000, 0, 255)); // 107.00
@@ -183,12 +183,9 @@ void inicioRobot() {
     potenciaPWMDer = velocidadBase;
   }
 
-  Serial.println("Potencia PWM Izq: " + String(potenciaPWMIzq) + "\n" + "Potencia PWM Der: " + String(potenciaPWMDer));
-  delay(1000);
-
-  //  analogWrite(PWMA, potenciaPWMDer);
-  //  analogWrite(PWMB, potenciaPWMIzq);
-  //  adelante();
+  analogWrite(PWMA, potenciaPWMDer);
+  analogWrite(PWMB, potenciaPWMIzq);
+  adelante();
 
   posicionAnterior = position;
 }
@@ -228,19 +225,13 @@ unsigned int leerPosicionError() {
 
   qtra.read(valoresSensorIr);
 
-  posicion_actual = qtra.readLine(valoresSensorIr); // ant = 3485 // act = 5050
-
-  for (unsigned char i = 0; i < NUM_SENSOR_IR; i++)
-  {
-    Serial.print(valoresSensorIr[i]);
-    Serial.print('\t');
-  }
-
-  Serial.println("| "  + String(posicion_actual));
-
-  delay(250);
-
   return (POS_OBJECTIVO - posicion_actual); // 3500 - 5050 = -1550
+}
+
+void primeraArrancada() {
+  analogWrite(PWMA, velocidadBase);
+  analogWrite(PWMB, velocidadBase);
+  adelante();
 }
 
 void adelante() {
