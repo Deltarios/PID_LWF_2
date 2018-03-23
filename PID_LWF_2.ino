@@ -74,8 +74,6 @@ unsigned int valoresSensorIr[NUM_SENSOR_IR];
 
 void setup() {
 
-  Serial.begin(9600);
-
   pinMode(BUTTON_STATUS, INPUT);
 
   pinMode(PWMA, OUTPUT);
@@ -94,8 +92,8 @@ void setup() {
   pinMode(ENCO_A_DER, INPUT);
   pinMode(ENCO_B_DER, INPUT);
 
-  attachInterrupt(0, leftEncoderEvento, CHANGE);
-  attachInterrupt(1, rightEncoderEvento, CHANGE);
+  attachInterrupt(0, leftEncoderEvento, RISING);
+  attachInterrupt(1, rightEncoderEvento, RISING);
 }
 
 void leftEncoderEvento() {
@@ -151,29 +149,19 @@ void loop() {
 void inicioRobot() {
   digitalWrite(STBY, HIGH);
 
-
-  primeraArrancada();
-
-  leerVelocidades();
-
-  Serial.println("++++++++++++Incio+++++++++++++++");
-
   float errorPID = calculoPID(); // = -1.2
 
-  Serial.println("Calculo PID: " + String(errorPID));
+  leerVelocidades();
 
   float velocidadRPMIzq = rpmIzq + errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
   float velocidadRPMDer = rpmDer - errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
 
-  int potenciaPWMIzq = ceil(map(velocidadRPMIzq, 0, 3000, 0, 255)); // 147.00
-  int potenciaPWMDer = ceil(map(velocidadRPMDer, 0, 3000, 0, 255)); // 107.00
+  if (velocidadRPMIzq == 0 && velocidadRPMDer == 0) {
+    primeraArrancada();
+  }
 
-  Serial.println("---------------------------");
-  Serial.println("Velocidad Izquierda RPM: " + String(rpmIzq) + " -> " + "Potencia Izquierda PWM: " + String(potenciaPWMIzq));
-  Serial.println("Velocidad Derecha RPM: " + String(rpmDer) + " -> " + "Potencia Derecha PWM: " + String(velocidadRPMDer));
-  Serial.println("++++++++++++Final+++++++++++++++++");
-
-  delay(100);
+  float potenciaPWMIzq = map(velocidadRPMIzq, 0, 3000, 0, 255); // 147.00
+  float potenciaPWMDer = map(velocidadRPMDer, 0, 3000, 0, 255); // 107.00
 
   if (potenciaPWMIzq > velocidadBase) {
     potenciaPWMIzq = velocidadBase;
@@ -209,15 +197,9 @@ void leerVelocidades() {
 unsigned int calculoPID() {
   position = leerPosicionError(); // 3500
 
-  Serial.println("Posicion:  " + String(position));
-
   derivativo = position - posicionAnterior; // 3500 - 3500
 
-  Serial.println("Derivativo:  " + String(derivativo));
-
-  integral = integral + position; // 14 . //
-
-  Serial.println("Integral:  " + String(integral));
+  integral = position + posicionAnterior; // 14 . //
 
   return (kP * position + kI * integral + kD * derivativo); // kp = 0.02, ki = 0.00003, kd = 0.04 => -1.2  - 0.00036  - 0  = -1.2
 
@@ -229,14 +211,7 @@ unsigned int leerPosicionError() {
 
   posicion_actual = qtra.readLine(valoresSensorIr);
 
-  for (unsigned char i = 0; i < NUM_SENSOR_IR; i++)
-  {
-    Serial.print(valoresSensorIr[i]);
-    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
-  }
-  Serial.println("| " + String(posicion_actual) + " | " + String(millis()));
-
-  return (posicion_actual - POS_OBJECTIVO); // 3500 - 5050 = -1550
+  return (POS_OBJECTIVO - posicion_actual);
 }
 
 void primeraArrancada() {
