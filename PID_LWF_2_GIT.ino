@@ -5,7 +5,7 @@
 
    CORREO: arturi.marking@gmail.com
 
-   FECHA: 12 de marzo del 2018
+   FECHA: 25 de marzo del 2018
 
    VERSION: 1.2
  ***************************************************************
@@ -28,9 +28,14 @@
 #define ENCO_A_DER 3
 #define ENCO_B_DER 5
 
+#define PIN_INTERRUPT_0 2
+#define PIN_INTERRUPT_1 3
+
 #define POS_OBJECTIVO 3500
 
 #define BUTTON_STATUS 12
+
+#define COLOR_PISTA 0
 
 #define NUM_SENSOR_IR 8
 
@@ -42,9 +47,10 @@ bool estadoRobot = false;
 
 const float velocidadBase = 50.0;
 
-const float kP = 0.08;
-const float kI = 0.0003;
-const float kD = 0.12;
+const float kP = 7 * 0.512;
+const float kI = 0;
+const float kD =  0;
+
 
 volatile unsigned long leftCount = 0;
 volatile unsigned long rightCount = 0;
@@ -55,7 +61,7 @@ float velocidadIzq = 0;
 float velocidadDer = 0;
 
 unsigned long tiempoAnterior = 0;
-unsigned int pulsosPorRevolucion = 8;
+unsigned int pulsosPorRevolucion = 6;
 
 unsigned int diametroRueda = 20;
 int relacionRuedas = 10;
@@ -91,6 +97,13 @@ void setup() {
 
   pinMode(ENCO_A_DER, INPUT);
   pinMode(ENCO_B_DER, INPUT);
+
+  pinMode(PIN_INTERRUPT_0, INPUT_PULLUP);
+  pinMode(PIN_INTERRUPT_1, INPUT_PULLUP);
+
+  //  for (int i = 0; i < 200; i++) {
+  //    qtra.calibrate();
+  //  }
 
   attachInterrupt(0, leftEncoderEvento, RISING);
   attachInterrupt(1, rightEncoderEvento, RISING);
@@ -149,19 +162,22 @@ void loop() {
 void inicioRobot() {
   digitalWrite(STBY, HIGH);
 
-  float errorPID = calculoPID(); // = -1.2
+  float errorPID = calculoPID();
 
   leerVelocidades();
 
-  float velocidadRPMIzq = rpmIzq + errorPID; // 1500 - (-233.90) = 1733.9 // antes  era ; - 0 - (-1.2) = 1.2
-  float velocidadRPMDer = rpmDer - errorPID; // 1500 + (-233.90) = 1266.1 // antes era + ; 0 + (-1.2) = -1.2
 
-  if (velocidadRPMIzq == 0 && velocidadRPMDer == 0) {
+  int veloLineal = (rpmIzq + rpmDer) / 2;
+
+  float velocidadRPMIzq = veloLineal - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era -
+  float velocidadRPMDer = veloLineal + errorPID; // 1500 + (-233.90) = 1266.1 // antes era +
+
+  if (rpmIzq == 0 && rpmDer == 0) {
     primeraArrancada();
   }
 
-  float potenciaPWMIzq = map(velocidadRPMIzq, 0, 3000, 0, 255); // 147.00
-  float potenciaPWMDer = map(velocidadRPMDer, 0, 3000, 0, 255); // 107.00
+  int potenciaPWMIzq = map(velocidadRPMIzq, 0, 3000, 0, 255); // 147.00
+  int potenciaPWMDer = map(velocidadRPMDer, 0, 3000, 0, 255); // 107.00
 
   if (potenciaPWMIzq > velocidadBase) {
     potenciaPWMIzq = velocidadBase;
@@ -171,11 +187,19 @@ void inicioRobot() {
     potenciaPWMDer = velocidadBase;
   }
 
-  analogWrite(PWMA, potenciaPWMDer);
-  analogWrite(PWMB, potenciaPWMIzq);
-  adelante();
-
-  posicionAnterior = position;
+  if (position == 3500) {
+    analogWrite(PWMA, potenciaPWMDer);
+    analogWrite(PWMB, potenciaPWMIzq);
+    adelante();
+  } else if (position < 3500 && position >= 0 ) {
+    analogWrite(PWMA, potenciaPWMDer);
+    analogWrite(PWMB, potenciaPWMIzq);
+    girarDer();
+  } else {
+    analogWrite(PWMA, potenciaPWMDer);
+    analogWrite(PWMB, potenciaPWMIzq);
+    girarIzq();
+  }
 }
 
 void leerVelocidades() {
@@ -197,9 +221,11 @@ void leerVelocidades() {
 unsigned int calculoPID() {
   position = leerPosicionError(); // 3500
 
+  integral = position + posicionAnterior; // 14 . //
+
   derivativo = position - posicionAnterior; // 3500 - 3500
 
-  integral = position + posicionAnterior; // 14 . //
+  posicionAnterior = position;
 
   return (kP * position + kI * integral + kD * derivativo); // kp = 0.02, ki = 0.00003, kd = 0.04 => -1.2  - 0.00036  - 0  = -1.2
 
@@ -209,7 +235,7 @@ unsigned int leerPosicionError() {
 
   qtra.read(valoresSensorIr);
 
-  posicion_actual = qtra.readLine(valoresSensorIr);
+  posicion_actual = qtra.readLine(valoresSensorIr, QTR_EMITTERS_ON, COLOR_PISTA);
 
   return (POS_OBJECTIVO - posicion_actual);
 }
@@ -223,6 +249,22 @@ void primeraArrancada() {
 void adelante() {
   digitalWrite(AIN_1, HIGH);
   digitalWrite(AIN_2, LOW);
+
+  digitalWrite(BIN_1, LOW);
+  digitalWrite(BIN_2, HIGH);
+}
+
+void girarDer() {
+  digitalWrite(AIN_1, LOW);
+  digitalWrite(AIN_2, HIGH);
+
+  digitalWrite(BIN_1, LOW);
+  digitalWrite(BIN_2, HIGH);
+}
+
+void girarIzq() {
+  digitalWrite(AIN_1, LOW);
+  digitalWrite(AIN_2, HIGH);
 
   digitalWrite(BIN_1, LOW);
   digitalWrite(BIN_2, HIGH);
