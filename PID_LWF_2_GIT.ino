@@ -45,7 +45,7 @@ long tiempo = 0;
 int previous = LOW;
 bool estadoRobot = false;
 
-const float velocidadBase = 50.0;
+const int velocidadBase = 255;
 
 const float kP = 7 * 0.512;
 const float kI = 0;
@@ -80,6 +80,8 @@ unsigned int valoresSensorIr[NUM_SENSOR_IR];
 
 void setup() {
 
+  Serial.begin(9600);
+
   pinMode(BUTTON_STATUS, INPUT);
 
   pinMode(PWMA, OUTPUT);
@@ -101,9 +103,9 @@ void setup() {
   pinMode(PIN_INTERRUPT_0, INPUT_PULLUP);
   pinMode(PIN_INTERRUPT_1, INPUT_PULLUP);
 
-  //  for (int i = 0; i < 200; i++) {
-  //    qtra.calibrate();
-  //  }
+  for (int i = 0; i < 200; i++) {
+    qtra.calibrate();
+  }
 
   attachInterrupt(0, leftEncoderEvento, RISING);
   attachInterrupt(1, rightEncoderEvento, RISING);
@@ -172,6 +174,8 @@ void inicioRobot() {
   float velocidadRPMIzq = veloLineal - errorPID; // 1500 - (-233.90) = 1733.9 // antes  era -
   float velocidadRPMDer = veloLineal + errorPID; // 1500 + (-233.90) = 1266.1 // antes era +
 
+  //Serial.println(errorPID);
+
   if (rpmIzq == 0 && rpmDer == 0) {
     primeraArrancada();
   }
@@ -188,17 +192,21 @@ void inicioRobot() {
   }
 
   if (position == 3500) {
-    analogWrite(PWMA, potenciaPWMDer);
-    analogWrite(PWMB, potenciaPWMIzq);
     adelante();
+    analogWrite(PWMA, potenciaPWMDer);
+    analogWrite(PWMB, potenciaPWMIzq);
   } else if (position < 3500 && position >= 0 ) {
-    analogWrite(PWMA, potenciaPWMDer);
-    analogWrite(PWMB, potenciaPWMIzq);
-    girarDer();
-  } else {
-    analogWrite(PWMA, potenciaPWMDer);
-    analogWrite(PWMB, potenciaPWMIzq);
     girarIzq();
+    if (potenciaPWMIzq < 0)
+      potenciaPWMIzq = -potenciaPWMIzq;
+    analogWrite(PWMA, potenciaPWMDer);
+    analogWrite(PWMB, potenciaPWMIzq);
+  } else {
+    girarDer();
+    if (potenciaPWMDer < 0)
+      potenciaPWMDer = -potenciaPWMDer;
+    analogWrite(PWMA, potenciaPWMDer);
+    analogWrite(PWMB, potenciaPWMIzq);
   }
 }
 
@@ -237,7 +245,16 @@ unsigned int leerPosicionError() {
 
   posicion_actual = qtra.readLine(valoresSensorIr, QTR_EMITTERS_ON, COLOR_PISTA);
 
-  return (POS_OBJECTIVO - posicion_actual);
+  for (unsigned char i = 0; i < NUM_SENSOR_IR; i++)
+  {
+    Serial.print(valoresSensorIr[i]);
+    Serial.print('\t'); // tab to format the raw data into columns in the Serial monitor
+  }
+
+  int pos = POS_OBJECTIVO - posicion_actual;
+  Serial.println("| " + String(posicion_actual) + " | " + String(millis()) + " Posicion Error: " + String(pos));
+
+  return (pos);
 }
 
 void primeraArrancada() {
